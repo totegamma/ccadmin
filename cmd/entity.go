@@ -75,7 +75,7 @@ func init() {
 func createEntity(ccid string) {
 	// create entity
     dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-        dump_dbhost, dump_dbuser, dump_dbpass, dump_dbname, dump_dbport)
+        entity_dbhost, entity_dbuser, entity_dbpass, entity_dbname, entity_dbport)
 
     db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
     if err != nil {
@@ -95,7 +95,7 @@ func createEntity(ccid string) {
 func setEntityRole(ccid string, role string) {
 	// set entity role
     dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-        dump_dbhost, dump_dbuser, dump_dbpass, dump_dbname, dump_dbport)
+        entity_dbhost, entity_dbuser, entity_dbpass, entity_dbname, entity_dbport)
 
     db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
     if err != nil {
