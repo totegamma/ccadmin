@@ -4,7 +4,7 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 */
 package main
 
-import "ccadmin/cmd"
+import "github.com/totegamma/ccadmin/cmd"
 
 func main() {
 	cmd.Execute()
