@@ -4,11 +4,18 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"os"
 	"github.com/spf13/cobra"
+	"os"
 )
 
-
+var (
+	dbname  string
+	dbhost  string
+	dbuser  string
+	dbpass  string
+	dbport  string
+	rdbaddr string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -35,14 +42,10 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ccadmin.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
+	rootCmd.PersistentFlags().StringVarP(&dbname, "dbname", "d", "concurrent", "Database name")
+	rootCmd.PersistentFlags().StringVarP(&dbhost, "dbhost", "H", "localhost", "Database host")
+	rootCmd.PersistentFlags().StringVarP(&dbuser, "dbuser", "u", "postgres", "Database user")
+	rootCmd.PersistentFlags().StringVarP(&dbpass, "dbpassword", "p", "postgres", "Database password")
+	rootCmd.PersistentFlags().StringVarP(&dbport, "dbport", "P", "5432", "Database port")
+	rootCmd.PersistentFlags().StringVarP(&rdbaddr, "rdbaddr", "r", "localhost:6379", "Redis address")
 }
-
-
