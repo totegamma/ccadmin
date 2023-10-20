@@ -4,9 +4,14 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"os"
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+	"strconv"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/totegamma/concurrent/x/core"
@@ -127,7 +132,65 @@ func dumpEntity(targetID string) {
 
 type StreamBackup struct {
 	Stream   core.Stream      `json:"stream"`
-	Elements []redis.XMessage `json:"elements"`
+	Items[]  core.StreamItem   `json:"items"`
+}
+
+type AllStreamBackup struct {
+	Streams map[string]StreamBackup `json:"streams"`
+}
+
+func dumpSingleStream(db *gorm.DB, rdb *redis.Client, targetStream string) (StreamBackup, error) {
+	backup := StreamBackup{}
+
+	stream := core.Stream{}
+	db.First(&stream, "id = ?", targetStream)
+	backup.Stream = stream
+
+	ctx := context.Background()
+	cmd := rdb.XRange(ctx, targetStream, "-", "+")
+	results, err := cmd.Result()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, item := range results {
+		streamItem := core.StreamItem{}
+		streamItem.StreamID = targetStream
+
+		unixTime := item.ID // 00000-00 notation
+		split := strings.Split(unixTime, "-")
+
+		millis, err := strconv.ParseInt(split[0], 10, 64)
+		if err != nil {
+			continue
+		}
+		decimal := millis / 1000
+		fraction := (millis % 1000) * 1000000
+		streamItem.CDate = time.Unix(decimal, fraction)
+
+		id, ok := item.Values["id"].(string)
+		if ok {
+			streamItem.ObjectID = id
+		}
+
+		typ, ok := item.Values["type"].(string)
+		if ok {
+			streamItem.Type = typ
+		}
+
+		owner, ok := item.Values["owner"].(string)
+		if ok {
+			streamItem.Owner = owner
+		}
+		author, ok := item.Values["author"].(string)
+		if ok {
+			streamItem.Author = author
+		}
+
+		backup.Items = append(backup.Items, streamItem)
+	}
+
+	return backup, nil
 }
 
 func dumpStream(targetStream string) {
@@ -136,7 +199,6 @@ func dumpStream(targetStream string) {
 		dbhost, dbuser, dbpass, dbname, dbport)
 	redisAddr := rdbaddr
 
-	ctx := context.Background()
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -149,21 +211,40 @@ func dumpStream(targetStream string) {
 		DB:       0,  // use default DB
 	})
 
-	backup := StreamBackup{}
+	if targetStream == "all" {
+		streams := []core.Stream{}
+		err = db.Find(&streams).Error
+		if err != nil {
+			panic(err)
+		}
+		backup := AllStreamBackup{}
+		backup.Streams = make(map[string]StreamBackup)
+		for i, stream := range streams {
+			// print progress
+			fmt.Fprintf(os.Stderr, "Dumping stream %s (%d/%d)\n", stream.ID, i, len(streams))
 
-	stream := core.Stream{}
-	db.First(&stream, "id = ?", targetStream)
-	backup.Stream = stream
+			backup.Streams[stream.ID], err = dumpSingleStream(db, rdb, stream.ID)
+			if err != nil {
+				panic(err)
+			}
+		}
 
-	cmd := rdb.XRange(ctx, targetStream, "-", "+")
-	backup.Elements, err = cmd.Result()
-	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Outputting backup...\n")
+
+		b, err := json.MarshalIndent(backup, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(b))
+	} else {
+		backup, err := dumpSingleStream(db, rdb, targetStream)
+		if err != nil {
+			panic(err)
+		}
+		b, err := json.MarshalIndent(backup, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(b))
 	}
-
-	b, err := json.MarshalIndent(backup, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(b))
 }

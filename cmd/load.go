@@ -96,34 +96,17 @@ func loadStream(backup StreamBackup) {
 
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		dbhost, dbuser, dbpass, dbname, dbport)
-	redisAddr := rdbaddr
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-
-	ctx := context.Background()
-
 	// load stream
 	db.Create(&backup.Stream)
 
-	// load Elements
-	for _, element := range backup.Elements {
-		_, err := rdb.XAdd(ctx, &redis.XAddArgs{
-			Stream: backup.Stream.ID,
-			ID:     element.ID,
-			Values: element.Values,
-		}).Result()
-		if err != nil {
-			fmt.Printf("fail to xadd: %v", err)
-		}
+	// load Items
+	for _, item := range backup.Items {
+		db.Create(&item)
 	}
-
 }

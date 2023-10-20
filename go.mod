@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/redis/go-redis/v9 v9.0.5
 	github.com/spf13/cobra v1.7.0
-	github.com/totegamma/concurrent v0.1.18
+	github.com/totegamma/concurrent v0.3.0-beta2
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.1
 )
