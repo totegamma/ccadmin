@@ -4,8 +4,16 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
+	"log"
 	"os"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/spf13/cobra"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -48,4 +56,38 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&dbpass, "dbpassword", "p", "postgres", "Database password")
 	rootCmd.PersistentFlags().StringVarP(&dbport, "dbport", "P", "5432", "Database port")
 	rootCmd.PersistentFlags().StringVarP(&rdbaddr, "rdbaddr", "r", "localhost:6379", "Redis address")
+}
+
+func openDB() *gorm.DB {
+
+	logger := logger.New(
+		log.New(os.Stderr, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold: time.Second,
+			LogLevel:      logger.Silent,
+			Colorful:      true,
+			ParameterizedQueries: true,
+		},
+	)
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		dbhost, dbuser, dbpass, dbname, dbport)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return db
+}
+
+func openRDB() *redis.Client {
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     rdbaddr,
+		Password: "",
+		DB:       0,
+	})
+
+	return rdb
 }

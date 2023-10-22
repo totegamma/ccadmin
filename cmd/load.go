@@ -7,10 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 // loadCmd represents the load command
@@ -37,6 +34,13 @@ to quickly create a Cobra application.`,
 				fmt.Println("error:", err)
 			}
 			loadEntity(target)
+		} else if mode == "entities" {
+			var target AllEntityBackup
+			err := decoder.Decode(&target)
+			if err != nil {
+				fmt.Println("error:", err)
+			}
+			loadEntities(target)
 		} else if mode == "stream" {
 			var target StreamBackup
 			err := decoder.Decode(&target)
@@ -44,6 +48,13 @@ to quickly create a Cobra application.`,
 				fmt.Println("error:", err)
 			}
 			loadStream(target)
+		} else if mode == "streams" {
+			var target AllStreamBackup
+			err := decoder.Decode(&target)
+			if err != nil {
+				fmt.Println("error:", err)
+			}
+			loadStreams(target)
 		} else {
 			fmt.Println("unknown mode")
 		}
@@ -56,21 +67,8 @@ func init() {
 
 func loadEntity(backup EntityBackup) {
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbhost, dbuser, dbpass, dbname, dbport)
-	redisAddr := rdbaddr
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-
+	db := openDB()
+	rdb := openRDB()
 	ctx := context.Background()
 
 	// load entity
@@ -92,15 +90,36 @@ func loadEntity(backup EntityBackup) {
 	}
 }
 
+func loadEntities(backup AllEntityBackup) {
+
+	db := openDB()
+	rdb := openRDB()
+	ctx := context.Background()
+
+	for _, entity := range backup.Entities {
+		// load entity
+		db.Save(&entity.Entity)
+
+		// load messages
+		for _, message := range entity.Messages {
+			db.Create(&message)
+		}
+
+		// load characters
+		for _, character := range entity.Characters {
+			db.Create(&character)
+		}
+
+		// load userkv
+		for _, userkv := range entity.UserKV {
+			rdb.Set(ctx, userkv.ID, userkv.Value, 0)
+		}
+	}
+}
+
 func loadStream(backup StreamBackup) {
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbhost, dbuser, dbpass, dbname, dbport)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
+	db := openDB()
 
 	// load stream
 	db.Create(&backup.Stream)
@@ -108,5 +127,20 @@ func loadStream(backup StreamBackup) {
 	// load Items
 	for _, item := range backup.Items {
 		db.Create(&item)
+	}
+}
+
+func loadStreams(backup AllStreamBackup) {
+
+	db := openDB()
+
+	for _, stream := range backup.Streams {
+		// load stream
+		db.Create(&stream.Stream)
+
+		// load Items
+		for _, item := range stream.Items {
+			db.Create(&item)
+		}
 	}
 }

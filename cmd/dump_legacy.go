@@ -15,7 +15,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/totegamma/concurrent/x/core"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -44,6 +43,10 @@ to quickly create a Cobra application.`,
 	},
 }
 
+type AllEntityBackup struct {
+	Entities map[string]EntityBackup `json:"entities"`
+}
+
 type EntityBackup struct {
 	CCID       string           `json:"ccid"`
 	Entity     core.Entity      `json:"entity"`
@@ -61,23 +64,7 @@ func init() {
 	rootCmd.AddCommand(legacyCmd)
 }
 
-func dumpEntity(targetID string) {
-
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbhost, dbuser, dbpass, dbname, dbport)
-	redisAddr := rdbaddr
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-
+func dumpSingleEntity(db *gorm.DB, rdb *redis.Client, targetID string) (EntityBackup, error) {
 	backup := EntityBackup{}
 	backup.CCID = targetID
 
@@ -122,12 +109,50 @@ func dumpEntity(targetID string) {
 	}
 	backup.UserKV = userkvs
 
-	// print backup
-	b, err := json.MarshalIndent(backup, "", "  ")
-	if err != nil {
-		panic(err)
+	return backup, nil
+
+}
+
+func dumpEntity(targetID string) {
+
+	db := openDB()
+	rdb := openRDB()
+
+	if targetID == "all" {
+		// get all entities
+		entities := []core.Entity{}
+		err := db.Find(&entities).Error
+		if err != nil {
+			panic(err)
+		}
+		backup := AllEntityBackup{}
+		backup.Entities = make(map[string]EntityBackup)
+		for i, entity := range entities {
+			fmt.Fprintf(os.Stderr, "dumping %s (%d/%d)\n", entity.ID, i, len(entities))
+			backup.Entities[entity.ID], err = dumpSingleEntity(db, rdb, entity.ID)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		fmt.Fprintf(os.Stderr, "Serializing...\n")
+		b, err := json.MarshalIndent(backup, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(b))
+	} else {
+		backup, err := dumpSingleEntity(db, rdb, targetID)
+		if err != nil {
+			panic(err)
+		}
+		// print backup
+		b, err := json.MarshalIndent(backup, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(b))
 	}
-	fmt.Println(string(b))
 }
 
 type StreamBackup struct {
@@ -178,13 +203,16 @@ func dumpSingleStream(db *gorm.DB, rdb *redis.Client, targetStream string) (Stre
 			streamItem.Type = typ
 		}
 
-		owner, ok := item.Values["owner"].(string)
-		if ok {
-			streamItem.Owner = owner
-		}
 		author, ok := item.Values["author"].(string)
 		if ok {
 			streamItem.Author = author
+		}
+
+		owner, ok := item.Values["owner"].(string)
+		if ok {
+			streamItem.Owner = owner
+		} else {
+			streamItem.Owner = author
 		}
 
 		backup.Items = append(backup.Items, streamItem)
@@ -195,25 +223,12 @@ func dumpSingleStream(db *gorm.DB, rdb *redis.Client, targetStream string) (Stre
 
 func dumpStream(targetStream string) {
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbhost, dbuser, dbpass, dbname, dbport)
-	redisAddr := rdbaddr
-
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
+	db := openDB()
+	rdb := openRDB()
 
 	if targetStream == "all" {
 		streams := []core.Stream{}
-		err = db.Find(&streams).Error
+		err := db.Find(&streams).Error
 		if err != nil {
 			panic(err)
 		}
@@ -229,7 +244,7 @@ func dumpStream(targetStream string) {
 			}
 		}
 
-		fmt.Fprintf(os.Stderr, "Outputting backup...\n")
+		fmt.Fprintf(os.Stderr, "Serializing...\n")
 
 		b, err := json.MarshalIndent(backup, "", "  ")
 		if err != nil {
