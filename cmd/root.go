@@ -23,6 +23,7 @@ var (
 	dbpass  string
 	dbport  string
 	rdbaddr string
+	mcaddr  string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -56,6 +57,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&dbpass, "dbpassword", "p", "postgres", "Database password")
 	rootCmd.PersistentFlags().StringVarP(&dbport, "dbport", "P", "5432", "Database port")
 	rootCmd.PersistentFlags().StringVarP(&rdbaddr, "rdbaddr", "r", "localhost:6379", "Redis address")
+	rootCmd.PersistentFlags().StringVarP(&mcaddr, "mcaddr", "m", "localhost:11211", "Memcached address")
 }
 
 func openDB() *gorm.DB {
@@ -63,9 +65,9 @@ func openDB() *gorm.DB {
 	logger := logger.New(
 		log.New(os.Stderr, "\r\n", log.LstdFlags),
 		logger.Config{
-			SlowThreshold: time.Second,
-			LogLevel:      logger.Silent,
-			Colorful:      true,
+			SlowThreshold:        time.Second,
+			LogLevel:             logger.Silent,
+			Colorful:             true,
 			ParameterizedQueries: true,
 		},
 	)

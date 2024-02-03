@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"context"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/spf13/cobra"
 	"github.com/totegamma/concurrent/x/core"
 	"github.com/totegamma/concurrent/x/entity"
@@ -56,14 +57,22 @@ func createEntity(ccid string) {
 		panic(err)
 	}
 
-	repo := entity.NewRepository(db)
+	mc := memcache.New(mcaddr)
+	defer mc.Close()
+
+	repo := entity.NewRepository(db, mc)
 
 	ctx := context.Background()
-	repo.Create(ctx, &core.Entity{
-		ID:   ccid,
-		Tag:  "",
-		Meta: "{}",
-	})
+	repo.CreateEntity(ctx, &core.Entity{
+		ID:        ccid,
+		Tag:       "",
+		Payload:   "{}",
+		Signature: "",
+	},
+		&core.EntityMeta{
+			ID:   ccid,
+			Info: "{}",
+		})
 }
 
 func setEntityRole(ccid string, role string) {
@@ -76,14 +85,17 @@ func setEntityRole(ccid string, role string) {
 		panic(err)
 	}
 
-	repo := entity.NewRepository(db)
+	mc := memcache.New(mcaddr)
+	defer mc.Close()
+
+	repo := entity.NewRepository(db, mc)
 
 	ctx := context.Background()
-	entity, err := repo.Get(ctx, ccid)
+	entity, err := repo.GetEntity(ctx, ccid)
 	if err != nil {
 		panic(err)
 	}
 
 	entity.Tag = role
-	repo.Update(ctx, &entity)
+	repo.UpdateEntity(ctx, &entity)
 }

@@ -4,13 +4,13 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"os"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
@@ -156,8 +156,8 @@ func dumpEntity(targetID string) {
 }
 
 type StreamBackup struct {
-	Stream   core.Stream      `json:"stream"`
-	Items[]  core.StreamItem   `json:"items"`
+	Stream core.Stream       `json:"stream"`
+	Items  []core.StreamItem `json:"items"`
 }
 
 type AllStreamBackup struct {

@@ -5,12 +5,13 @@ go 1.20
 require (
 	github.com/redis/go-redis/v9 v9.0.5
 	github.com/spf13/cobra v1.7.0
-	github.com/totegamma/concurrent v0.3.0-beta2
+	github.com/totegamma/concurrent v0.5.5
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.1
 )
 
 require (
+	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
@@ -32,6 +33,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rs/xid v1.5.0 // indirect
 	github.com/sirupsen/logrus v1.9.2 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
